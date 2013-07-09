@@ -1,1 +1,428 @@
-hello
+
+Stack Exchange ▼dhaval 315  chat  meta  about  help
+
+
+Stack Overflow
+Questions
+Tags
+Users
+Badges
+Unanswered
+Ask Question
+How do I fix merge conflicts in Git?
+up vote
+1270
+down vote
+favorite
+498
+Is there a good way to explain how to resolve merge conflicts in Git?
+
+git merge git-merge merge-conflict-resolution
+share|edit|flag
+edited Aug 16 '12 at 21:20
+
+venkat
+132	
+asked Oct 2 '08 at 11:31
+
+Spoike
+23.6k2680107
+3	
+ 	
+The following blog post seems to give a very good example on how to handle merge conflict with Git that should get you going in the right direction. Handling and Avoiding Conflicts in Git – mwilliams Oct 2 '08 at 11:40
+protected by Will Dec 17 '10 at 13:56
+This question is protected to prevent "thanks!", "me too!", or spam answers by new users. To answer it, you must have earned at least 10 reputation on this site.
+
+ 8 Answers activeoldestvotes
+up vote
+776
+down vote
+Try: git mergetool
+
+It opens a GUI that steps you through each conflict and you get to choose how to merge. Sometimes it requires a bit of hand editing afterwards, but usually it's enough by itself. Much better than doing the whole thing by hand certainly.
+
+share|edit|flag
+edited Jun 8 '11 at 14:23
+
+Josh Leitzel
+5,66252645	
+answered Oct 2 '08 at 17:50
+
+Peter Burns
+11.9k42032
+10	
+ 	
+FYI you can use git mergetool -y to save a few keystrokes if you're merging a lot of files at once. – davr Jun 17 '10 at 23:32
+132	
+ 	
+Well, it doesn't necessarily open a GUI unless you install one. Running git mergetool for me resulted in vimdiff being used. You can install one of the following tools to use it instead: meld opendiff kdiff3 tkdiff xxdiff tortoisemerge gvimdiff diffuse ecmerge p4merge araxis vimdiff emerge. – Josh Glover May 11 '11 at 14:00
+10	
+ 	
+Good point Josh. On ubuntu I've had the best luck with meld, its three way merge display isn't bad. On OSX git chose a nice default. – Peter Burns May 24 '11 at 5:08
+2	
+ 	
+This opened KDiff3. Which I have absolutely no clue how to use. – David Murdoch Jun 10 '11 at 18:46
+2	
+ 	
+downloading beyond compare 3 worked great as a windows user didn't take me too long to learn and didn't need to change anything since git is set up to use it from the start. only problem is now i don't know the console command to say the merge conflicts are done. – advocate Mar 5 at 23:36
+show 2 more comments
+up vote
+695
+down vote
+Here's a probable use-case, from the top:
+
+You're going to pull some changes, but oops, you're not up to date:
+
+> git fetch origin
+> git pull origin master
+From ssh://gitosis@example.com:22/projectname
+ * branch            master     -> FETCH_HEAD
+Updating a030c3a..ee25213
+error: Entry 'filename.c' not uptodate. Cannot merge.
+So you get up-to-date and try again, but have a conflict:
+
+> git add filename.c
+> git commit -m "made some wild and crazy changes"
+> git pull origin master
+From ssh://gitosis@example.com:22/projectname
+ * branch            master     -> FETCH_HEAD
+Auto-merging filename.c
+CONFLICT (content): Merge conflict in filename.c
+Automatic merge failed; fix conflicts and then commit the result.
+So you decide to take a look at the changes:
+
+> git mergetool
+Oh me, oh my, upstream changed some things, but just to use my changes.... no... their changes...
+
+> git checkout --ours filename.c
+> git checkout --theirs filename.c
+> git add filename.c
+> git commit -m "using theirs"
+And then we try a final time
+
+> git pull origin master
+From ssh://gitosis@example.com:22/projectname
+ * branch            master     -> FETCH_HEAD
+Already up-to-date.
+Ta-da!
+
+share|edit|flag
+edited Jun 6 at 7:29
+
+Olivier Lalonde
+2,43063545	
+answered Aug 4 '10 at 17:04
+
+CoolAJ86
+9,97021936
+4	
+ 	
+This was super helpful because I had a lot of merge errors with binary files (art assets) and merging those seems to always fail, so I need to overwrite it with the new file always and not "merge" – petrocket Jun 8 '11 at 17:39
+78	
+ 	
+Thanks! 'git checkout --theirs' vs 'git checkout --ours' was exactly the information that I was looking for, and isn't mentioned in the Git book on merge resolution. – swestrup Jul 1 '11 at 21:19
+3	
+ 	
+--ours and --theirs is HARD to find in the docs. Thank you for that – Slomojo May 11 '12 at 5:18
+2	
+ 	
+It's not often you get a SO answer that is also a tiny story! Thanks – cmroanirgo Nov 26 '12 at 23:52
+10	
+ 	
+Careful! The meaning of --ours and --theirs is reversed. --ours == the remote. --theirs == local. See git merge --help – mmell Mar 4 at 22:56
+show 9 more comments
+up vote
+167
+down vote
+I find merge tools rarely help me understand the conflict or the resolution. I'm usually more successful looking at the conflict markers in a text editor and using git log as a supplement.
+
+Here are a few tips:
+
+Tip One
+
+The best thing I have found is to use the "diff3" merge conflict style:
+
+git config merge.conflictstyle diff3
+
+This produces conflict markers like this:
+
+<<<<<<<
+changes made on my branch
+|||||||
+the common ancestor version
+=======
+changes made on the branch i'm merging
+>>>>>>>
+The middle section is what the common ancestor looked like. This is useful because you can compare it to the top and bottom versions to get a better sense of what was changed on each branch, which gives you a better idea for what the purpose of each change was.
+
+If the conflict is only a few lines, this generally makes the conflict very obvious. (Knowing how to fix a conflict is very different; you need to be aware of what other people are working on. If you're confused, it's probably best to just call that person into your room so they can see what you're looking at.)
+
+If the conflict is longer, then I will cut and paste each of the three sections into three separate files, such as "mine", "common" and "theirs".
+
+Then I can run the following commands to see the two diff hunks that caused the conflict:
+
+diff common mine
+diff common theirs
+This is not the same as using merge tool, since merge tool will include all of the non-conflicting diff hunks too. I find that to be distracting.
+
+Tip Two
+
+Somebody already mentioned this, but understanding the intention behind each diff hunk is generally very helpful for understanding where a conflict came from and how to handle it.
+
+git log --merge -p <name of file>
+This shows all of the commits that touched that file in between the common ancestor and the two heads you are merging. (So it doesn't include commits that already exist in both branches before merging.) This helps you ignore diff hunks that clearly are not a factor in your current conflict.
+
+Tip Three
+
+Verify your changes with automated tools.
+
+If you have automated tests, run those. If you have a lint, run that. If it's a buildable project, then build it before you commit, etc. In all cases, you need to do a bit of testing to make sure your changes didn't break anything. (Heck, even a merge without conflicts can break working code.)
+
+Tip Four
+
+If you're unsure of a merge, don't force it.
+
+Merging can feel overwhelming, especially when there are a lot of conflicting files and the conflict markers cover hundreds of lines. Often times when estimating software projects we don't include enough time for overhead items like handling a gnarly merge, so it feels like a real drag to spend several hours dissecting each conflict.
+
+In the long run, awareness of what others are working on (such as code review) is the best tool to anticipate merge conflicts and prepare yourself to resolve them correctly in less time.
+
+share|edit|flag
+edited Mar 20 at 20:30
+
+answered Sep 28 '11 at 21:08
+
+mehaase
+3,40711821
+9	
+ 	
+Seriously one of the most helpful answers I've read on SO, thank you. – Isaac Aug 1 '12 at 16:22
+4	
+ 	
+This is the most helpful answer. – kmdent Aug 3 '12 at 16:31
+1	upvote
+ 	flag
++1. I had forgotten about diff3, and was essentially looking for it and the log --merge tip. – nafg Feb 1 at 3:36
+up vote
+107
+down vote
+Identify which files are in conflict (Git should tell you this)
+Open each file and examine the diffs; Git demarcates them. Hopefully it will be obvious which version of each block to keep. You may need to discuss it with fellow developers who committed the code
+Once you've resolved the conflict in a file git add the_file
+Once you've resolved all conflicts, do git rebase --continue or whatever command git said to do when you completed
+share|edit|flag
+answered Oct 2 '08 at 12:41
+
+davetron5000
+8,20822870
+2	
+ 	
+thanks for this simple answer, vey helpful. Any idea why "git add" is used in this case-- seems odd given that the file in question is already in the GIT repo. – Justin Grant Oct 10 '10 at 4:52
+13	
+ 	
+@Justin Think of Git as tracking content rather than tracking files. Then it's easy to see that the content you've updated isn't in the repository and needs to be added. This way of thinking also explains why Git doesn't track empty folders: Although they are technically files, there isn't any content to track. – Gareth Oct 12 '10 at 9:17
+2	
+ 	
+content is there, conflict occurs because there 2 version of content. Therefore "git add" does not sound correct. And it does not work (git add, git commit) if you want commit only that one file after conflict was resolved ("fatal: cannot do a partial commit during a merge.") – Dainius Sep 14 '11 at 9:19
+ 	
+ 	
+Yes, technically, this answers the question which as asked, but is not a usable answer, in my opinion, sorry. What's the point of making one branch the same as another? Of course a merge will have conflicts.. – Thufir Aug 9 '12 at 5:56
+ 	
+ 	
+Thanks! git add the_file was my missing link to solve a manuell merged conflict! – Calaelen Aug 31 '12 at 18:25
+show 2 more comments
+up vote
+44
+down vote
+Checkout the answers in Aborting a merge in Git, especially Charles Bailey's answer which shows how to view the different versions of the file with problems, for example,
+
+# Common base version of the file.
+git show :1:some_file.cpp
+
+# 'Ours' version of the file.
+git show :2:some_file.cpp
+
+# 'Theirs' version of the file.
+git show :3:some_file.cpp
+share|edit|flag
+edited May 30 '11 at 15:43
+
+Peter Mortensen
+6,27574070	
+answered Oct 3 '08 at 15:15
+
+Pat Notz
+33.4k135268
+up vote
+20
+down vote
+If you're making frequent small commits, then start by looking at the commit comments with git log --merge. Then git diff will show you the conflicts.
+
+For conflicts that involve more than a few lines, it's easier to see what's going on in an external gui tool. I like opendiff -- git also supports vimdiff, gvimdiff, kdiff3, tkdiff, meld, xxdiff, emerge out of the box and you can install others: git config merge.tool "your.tool" will set your chosen tool and then git mergetool after a failed merge will show you the diffs in context.
+
+Each time you edit a file to resolve a conflict git add filename will update the index and your diff will no longer show it. When all the conflicts are handled and their files have been git add-ed, git commit will complete your merge.
+
+share|edit|flag
+answered Oct 2 '08 at 16:11
+
+Paul
+11.9k21719
+2	
+ 	
+Using "git add" is the real trick here. You may not even want to commit (maybe you want to stash), but you have to do "git add" to complete the merge. I think mergetool does the add for you (although it isn't in the manpage), but if you do the merge manually, you need to use "git add" to complete it (even if you don't want to commit). – nobar Oct 25 '10 at 9:37
+up vote
+6
+down vote
+For Emacs users which want to resolve merge conflicts semi-manually:
+
+git diff --name-status --diff-filter=U
+shows all files which require conflict resolution. Open each of those file one by one, or all at once by:
+
+emacs $(git diff --name-only --diff-filter=U)
+When visiting a buffer requiring edits in emacs type
+
+ALT+x vc-resolve-conflicts
+This will open 3 buffers (mine, theirs, and the output buffer). Navigate by pressing 'n' (next region), 'p' (prevision region). Press 'a' and 'b' to copy mine or theirs region to output buffer, respectively. And/or edit the output buffer directly. When finished: Press 'q', emacs asks you if you want to save this buffer: yes. After finishing a buffer mark it as resolved by running from the teriminal:
+
+git add FILENAME
+When finished with all buffers type
+
+git commit
+to finish the merge.
+
+share|edit|flag
+answered Feb 22 at 23:04
+
+eci
+41138
+up vote
+1
+down vote
+You could fix merge conflicts in a number of ways as other have detailed.
+
+I think the real key is understanding how changes flow with local and remote repositories. The key to this is understading tracking branches. I have found that I think of the tracking branch as the 'missing piece in the middle' between me my local, atual files directory and the remote defined as origin.
+
+I've personally got into the habit of 2 things to help avoid this.
+
+Instead of:
+
+git add .
+git commit -m"some msg"
+Which has two drawbacks - 1) All files get added and that might include some not needed and 2) You don't get to review the file list first, instead I do:
+
+git add file,file2,file3...
+git commit # Then type the files in the editor and save-quit.
+This way you are more deliberate about which files get added and you also get to review the list and think a bit more while using the editor for the message. I find it also improves my commit messages when I use a full screen editor.
+
+Also (and more relevant to your situation), I try to avoid:
+
+git pull
+or
+
+git pull origin master.
+because pull implies a merge and if you have changes locally that you didn't want merged you can easily end up with merge conflicts that you then have to spend time resolving.
+
+Instead I try to do
+
+git checkout master
+git fetch   
+git reset --hard origin/master # or whatever branch I want.
+You may also find this helpful:
+
+git branch, fork, fetch, merge, rebase and clone, what are the differences?
+
+share|edit|flag
+answered Apr 19 at 1:08
+
+Michael Durrant
+20.6k952106
+Your Answer
+Links Images Styling/Headers Lists Blockquotes Code HTML advanced help »
+
+  community wiki
+
+Not the answer you're looking for? Browse other questions tagged git merge git-merge merge-conflict-resolution or ask your own question.
+tagged
+git × 28742
+merge × 4612
+git-merge × 461
+merge-conflict-resolution × 94
+asked
+4 years ago
+viewed
+548539 times
+active
+1 month ago
+Linked
+-4 How can I get rid of this merging garbage?
+0 Git Automatic merge failed; fix conflicts and then commit the result.
+284 Aborting a merge in Git
+211 git branch, fork, fetch, merge, rebase and clone, what are the differences?
+116 Git on Windows: How do you set up a mergetool?
+10 git: branches diverged; how to proceed?
+10 Merge conflict resolution
+6 How do I fix a merge conflict due to removal of a file in a branch?
+11 Git: currently in merge/conflict with private remote repo. How to tell Git to just use my local files?
+5 How do I go about solving this git conflict?
+see more linked questions…
+Related
+3179 How do I edit an incorrect commit message in Git?
+1765 What's the difference between 'git pull' and 'git fetch'?
+130 When would you use the different git merge strategies?
+323 How do you merge selective files with git-merge?
+2762 How to undo the last Git commit?
+6 How do I fix a merge conflict due to removal of a file in a branch?
+497 Undo a Git merge?
+1 Why does git sometimes mark added lines as changed lines (i.e. an empty conflict over an added piece of code)
+5 `git stash` during a merge conflict
+0 Merge two reformatted PHP files with GIT
+question feed
+about help blog chat data legal privacy policy jobs advertising info mobile contact us feedback
+TECHNOLOGY	 LIFE / ARTS	 CULTURE / RECREATION	 SCIENCE	 OTHER
+Stack Overflow
+Server Fault
+Super User
+Web Applications
+Ask Ubuntu
+Webmasters
+Game Development
+TeX - LaTeX
+Programmers
+Unix & Linux
+Ask Different (Apple)
+WordPress Answers
+Geographic Information Systems
+Electrical Engineering
+Android Enthusiasts
+IT Security
+Database Administrators
+Drupal Answers
+SharePoint
+User Experience
+Mathematica
+more (13)
+Photography
+Science Fiction & Fantasy
+Seasoned Advice (cooking)
+Home Improvement
+more (13)
+English Language & Usage
+Skeptics
+Mi Yodeya (Judaism)
+Travel
+Christianity
+Arqade (gaming)
+Bicycles
+Role-playing Games
+more (21)
+Mathematics
+Cross Validated (stats)
+Theoretical Computer Science
+Physics
+MathOverflow
+more (7)
+Stack Apps
+Meta Stack Overflow
+Area 51
+Stack Overflow Careers
+site design / logo © 2013 stack exchange inc; user contributions licensed under cc-wiki with attribution required
+rev 2013.7.9.827
